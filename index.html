@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>123more Simulator</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#f5f5f5;color:#222;font-family:Arial,"Hiragino Kaku Gothic ProN",Meiryo,sans-serif}
+.container{max-width:1100px;margin:0 auto}
+h1{margin:0 0 20px;text-align:center} h2{margin-top:0;font-size:20px}
+.panel{background:#fff;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.current-set{text-align:center;padding:20px;background:#fafafa;border-radius:10px;margin-bottom:20px}
+.set-number{font-size:14px;color:#666}.numbers{margin:15px 0;font-size:32px;font-weight:bold;letter-spacing:2px}
+.bet{font-size:28px;font-weight:bold;margin:10px 0}.multiplier-display{font-size:15px;color:#666}
+.buttons{display:flex;justify-content:center;gap:15px;flex-wrap:wrap;margin-top:20px}
+button{border:none;border-radius:8px;padding:14px 28px;font-size:16px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}.win-btn{background:#4caf50;color:#fff}.lose-btn{background:#e53935;color:#fff}
+.next-btn{background:#1976d2;color:#fff}.reset-btn{background:#666;color:#fff}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:#f7f7f7;border-radius:8px;padding:12px;text-align:center}.stat-label{font-size:13px;color:#666}
+.stat-value{margin-top:5px;font-size:20px;font-weight:bold}.profit{color:#16803c}.loss{color:#d32f2f}
+.history{max-height:300px;overflow-y:auto;border:1px solid #ddd;border-radius:8px}
+.history-item{padding:8px 12px;border-bottom:1px solid #eee;font-size:14px}.history-item:last-child{border-bottom:none}
+.form-row{display:flex;gap:15px;flex-wrap:wrap;align-items:end}.form-group{flex:1;min-width:180px}
+.form-group label{display:block;margin-bottom:6px;font-weight:bold;font-size:14px}
+input{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:16px}
+.sim-button{background:#7b1fa2;color:#fff}.sim-result{margin-top:20px}
+.warning{display:none;margin:15px 0;padding:12px;border-radius:8px;background:#fff3cd;color:#856404;font-weight:bold}
+.set-end{display:none;padding:15px;margin-top:15px;border-radius:8px;background:#e3f2fd;color:#1565c0;font-size:18px;font-weight:bold}
+@media (max-width:600px){
+ body{padding:10px}.panel{padding:15px}.numbers{font-size:25px}.bet{font-size:24px}
+ button{width:100%}.buttons{gap:10px}.stats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>123more Simulator</h1>
+
+<div class="panel">
+<h2>⚙️ 掛け金設定</h2>
+<div class="form-row"><div class="form-group">
+<label for="betMultiplier">掛け金倍率</label>
+<input type="number" id="betMultiplier" value="1" min="0.1" step="0.1">
+</div></div>
+<p>基本の123システムを<strong>何倍の金額で実行するか</strong>を設定します。</p>
+<p>例：1倍＝400円　1.5倍＝600円　2倍＝800円</p>
+</div>
+
+<div class="panel">
+<h2>🎮 手動プレイ</h2>
+<div class="current-set">
+<div class="set-number">第 <span id="setNumber">1</span> セット</div>
+<div class="numbers" id="numbers">1　2　3</div>
+<div class="bet">次の掛け金：<span id="currentBet">400</span>円</div>
+<div class="multiplier-display">掛け金倍率：<span id="manualMultiplier">1</span>倍</div>
+<div class="set-end" id="setEnd">🔔 セット終了！</div>
+</div>
+<div class="buttons">
+<button class="win-btn" id="winBtn" onclick="manualWin()">WIN</button>
+<button class="lose-btn" id="loseBtn" onclick="manualLose()">LOSE</button>
+<button class="next-btn" id="nextSetBtn" onclick="nextSet()" style="display:none;">次のセット</button>
+<button class="reset-btn" onclick="resetManual()">リセット</button>
+</div>
+</div>
+
+<div class="panel">
+<h2>📊 手動統計</h2>
+<div class="stats">
+<div class="stat"><div class="stat-label">総掛け回数</div><div class="stat-value" id="totalBets">0</div></div>
+<div class="stat"><div class="stat-label">勝ち</div><div class="stat-value" id="totalWins">0</div></div>
+<div class="stat"><div class="stat-label">負け</div><div class="stat-value" id="totalLosses">0</div></div>
+<div class="stat"><div class="stat-label">勝率</div><div class="stat-value" id="winRate">0.00%</div></div>
+<div class="stat"><div class="stat-label">完了セット</div><div class="stat-value" id="completedSets">0</div></div>
+<div class="stat"><div class="stat-label">総利益</div><div class="stat-value" id="totalProfit">0円</div></div>
+<div class="stat"><div class="stat-label">最大掛け金</div><div class="stat-value" id="maxBet">0円</div></div>
+<div class="stat"><div class="stat-label">現在セット損益</div><div class="stat-value" id="setProfit">0円</div></div>
+</div>
+</div>
+
+<div class="panel">
+<h2>📜 履歴</h2><div class="history" id="history"></div>
+</div>
+
+<div class="panel">
+<h2>🤖 自動シミュレーション</h2>
+<div class="form-row">
+<div class="form-group"><label for="simSets">シミュレーションセット数</label><input type="number" id="simSets" value="1000" min="1"></div>
+<div class="form-group"><label for="winProbability">1回ごとの勝率（%）</label><input type="number" id="winProbability" value="50" min="0" max="100" step="0.01"></div>
+<div class="form-group"><label for="startingCapital">開始資金（円）</label><input type="number" id="startingCapital" value="100000" min="0"></div>
+</div>
+<div class="buttons"><button class="sim-button" onclick="runSimulation()">シミュレーション開始</button></div>
+<div class="warning" id="simulationWarning"></div>
+<div class="sim-result"><div class="stats">
+<div class="stat"><div class="stat-label">完了セット</div><div class="stat-value" id="simCompletedSets">0</div></div>
+<div class="stat"><div class="stat-label">総掛け回数</div><div class="stat-value" id="simTotalBets">0</div></div>
+<div class="stat"><div class="stat-label">勝ち</div><div class="stat-value" id="simWins">0</div></div>
+<div class="stat"><div class="stat-label">負け</div><div class="stat-value" id="simLosses">0</div></div>
+<div class="stat"><div class="stat-label">勝率</div><div class="stat-value" id="simWinRate">0.00%</div></div>
+<div class="stat"><div class="stat-label">最終利益</div><div class="stat-value" id="simProfit">0円</div></div>
+<div class="stat"><div class="stat-label">最大掛け金</div><div class="stat-value" id="simMaxBet">0円</div></div>
+<div class="stat"><div class="stat-label">必要最低資金</div><div class="stat-value" id="requiredCapital">0円</div></div>
+</div></div>
+</div>
+</div>
+
+<script>
+let numbers=[1,2,3],setNumber=1,setEnded=false,totalBets=0,totalWins=0,totalLosses=0,completedSets=0,totalProfit=0,setProfit=0,maxBet=0;
+function getMultiplier(){const v=parseFloat(document.getElementById("betMultiplier").value);return !Number.isFinite(v)||v<=0?1:v}
+function calculateBaseBet(arr){if(!arr.length)return 0;if(arr.length===1)return arr[0]*100;return(arr[0]+arr[arr.length-1])*100}
+function calculateBet(arr){return calculateBaseBet(arr)*getMultiplier()}
+function formatNumbers(arr){return arr.length?arr.join("　"):"―"}
+function updateDisplay(){
+ document.getElementById("numbers").textContent=formatNumbers(numbers);
+ document.getElementById("currentBet").textContent=calculateBet(numbers).toLocaleString();
+ document.getElementById("manualMultiplier").textContent=getMultiplier();
+ document.getElementById("setNumber").textContent=setNumber;
+ document.getElementById("totalBets").textContent=totalBets.toLocaleString();
+ document.getElementById("totalWins").textContent=totalWins.toLocaleString();
+ document.getElementById("totalLosses").textContent=totalLosses.toLocaleString();
+ document.getElementById("winRate").textContent=(totalBets?totalWins/totalBets*100:0).toFixed(2)+"%";
+ document.getElementById("completedSets").textContent=completedSets.toLocaleString();
+ const p=document.getElementById("totalProfit");p.textContent=totalProfit.toLocaleString()+"円";p.className="stat-value "+(totalProfit>=0?"profit":"loss");
+ document.getElementById("maxBet").textContent=maxBet.toLocaleString()+"円";
+ const sp=document.getElementById("setProfit");sp.textContent=setProfit.toLocaleString()+"円";sp.className="stat-value "+(setProfit>=0?"profit":"loss");
+ document.getElementById("winBtn").disabled=setEnded;document.getElementById("loseBtn").disabled=setEnded;
+ document.getElementById("nextSetBtn").style.display=setEnded?"inline-block":"none";
+ document.getElementById("setEnd").style.display=setEnded?"block":"none";
+}
+function playSetEndSound(){try{const AC=window.AudioContext||window.webkitAudioContext,ctx=new AC(),o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=880;g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25);o.connect(g);g.connect(ctx.destination);o.start();o.stop(ctx.currentTime+.25)}catch(e){}}
+function addHistory(t){const i=document.createElement("div");i.className="history-item";i.textContent=t;document.getElementById("history").prepend(i)}
+function manualWin(){if(setEnded)return;const bet=calculateBet(numbers);if(bet<=0)return;totalBets++;totalWins++;totalProfit+=bet;setProfit+=bet;if(bet>maxBet)maxBet=bet;numbers.shift();if(numbers.length)numbers.pop();addHistory(`WIN　${bet.toLocaleString()}円`);if(!numbers.length){completedSets++;setEnded=true;playSetEndSound();addHistory("🔔 セット終了！")}updateDisplay()}
+function manualLose(){if(setEnded)return;const baseBet=calculateBaseBet(numbers),bet=baseBet*getMultiplier();if(bet<=0)return;totalBets++;totalLosses++;totalProfit-=bet;setProfit-=bet;if(bet>maxBet)maxBet=bet;numbers.push(baseBet/100);addHistory(`LOSE　${bet.toLocaleString()}円　→ ${baseBet/100} を追加`);updateDisplay()}
+function nextSet(){numbers=[1,2,3];setNumber++;setEnded=false;setProfit=0;updateDisplay()}
+function resetManual(){numbers=[1,2,3];setNumber=1;setEnded=false;totalBets=0;totalWins=0;totalLosses=0;completedSets=0;totalProfit=0;setProfit=0;maxBet=0;document.getElementById("history").innerHTML="";updateDisplay()}
+document.getElementById("betMultiplier").addEventListener("input",updateDisplay);
+function runSimulation(){
+ const targetSets=parseInt(document.getElementById("simSets").value),winProbability=parseFloat(document.getElementById("winProbability").value);
+ let money=parseFloat(document.getElementById("startingCapital").value),multiplier=getMultiplier();
+ if(!Number.isFinite(targetSets)||targetSets<=0||!Number.isFinite(winProbability)||winProbability<0||winProbability>100||!Number.isFinite(money)||money<0)return;
+ let sc=0,stb=0,sw=0,sl=0,sm=0,cp=0,rc=0,broke=false;
+ for(let s=0;s<targetSets;s++){let arr=[1,2,3],actions=0;while(arr.length&&actions<10000){actions++;const base=calculateBaseBet(arr),bet=base*multiplier;rc=Math.max(rc,bet-cp);if(money<bet){broke=true;break}stb++;if(Math.random()*100<winProbability){sw++;money+=bet;cp+=bet;arr.shift();if(arr.length)arr.pop()}else{sl++;money-=bet;cp-=bet;arr.push(base/100)}sm=Math.max(sm,bet)}if(broke)break;if(!arr.length)sc++}
+ document.getElementById("simCompletedSets").textContent=sc.toLocaleString();document.getElementById("simTotalBets").textContent=stb.toLocaleString();document.getElementById("simWins").textContent=sw.toLocaleString();document.getElementById("simLosses").textContent=sl.toLocaleString();document.getElementById("simWinRate").textContent=(stb?sw/stb*100:0).toFixed(2)+"%";
+ const profit=money-parseFloat(document.getElementById("startingCapital").value),pe=document.getElementById("simProfit");pe.textContent=profit.toLocaleString()+"円";pe.className="stat-value "+(profit>=0?"profit":"loss");document.getElementById("simMaxBet").textContent=sm.toLocaleString()+"円";document.getElementById("requiredCapital").textContent=Math.max(0,rc).toLocaleString()+"円";
+ const w=document.getElementById("simulationWarning");w.style.display=broke?"block":"none";w.textContent="⚠️ シミュレーション途中で資金不足になりました。";
+}
+updateDisplay();
+</script>
+</body>
+</html>
